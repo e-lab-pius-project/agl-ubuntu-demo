@@ -1,0 +1,12 @@
+/data/
+*.qcow2
+*.ext4
+*.ext4.xz
+bzImage
+*.log
+known_hosts
+*.sock
+*.key
+*.pem
+.run.lock
+.prepare.lock
