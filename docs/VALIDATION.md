@@ -29,9 +29,24 @@
 | 実QEMU稼働中の二重起動拒否 | PASS |
 | poweroffによる正常終了・QEMU終了 | PASS |
 
-既存の別のAGL環境を止めないため、一時コピーしたstart.shのSSH転送ポートだけを2222から2223へ変更して試験しました。画面表示・KVM・ディスクなど、ほかの起動設定は本リポジトリと同じです。試験には新しい作業用ディスクを使い、USB-CANは渡していません。既存のAGL環境の設定は変更していません。
+この時点の起動試験はGPU有効化前の2D構成です。既存の別のAGL環境を止めないため、一時コピーしたstart.shのSSH転送ポートを2222から2223へ変更しました。試験には新しい作業用ディスクを使い、USB-CANは渡していません。既存のAGL環境の設定は変更していません。
 
-Ubuntuの新規インストールからsetup-host.shを通す一連の作業、WindowsからのRDP接続、Ubuntu 26.04でのCAN通信は未検証です。grdctlの操作体系と既存のRDP共有サービスの有効状態は実機で確認しています。
+この日の検査には、Ubuntuの新規インストールからsetup-host.shを通す全工程、WindowsからのRDP接続、CAN通信は含みません。grdctlの操作体系と既存のRDP共有サービスの有効状態は実機で確認しています。仮想CAN通信の追加検証は次節に記録します。
+
+## 2026-11-07：GPU有効化とPIUSパネルのCAN表示
+
+Ubuntu Desktop 26.04.1、AMD Ryzen 5 7530U内蔵Radeon、QEMU 10.2.1 / KVM、仮想CPU 2個・RAM 2 GiBで確認しました。起動設定を `virtio-vga-gl`・`gtk,gl=on` に切り替え、AGL側で `virgl: yes` と `virgl (AMD Radeon Graphics …)` を確認しています。既存の作業ディスクと起動スクリプトは切替前に退避しました。
+
+[pius-meter-panel](https://github.com/e-lab-pius-project/pius-meter-panel)を表示し、Ubuntuの仮想CANからcannelloni TCPでAGLへ入力しました。CANプロバイダーの最小転送間隔は同プロジェクトで50 msに設定します。
+
+100 ms周期の入力に対し、20秒間でCAN受信・KUKSA更新とも各信号約10 Hz、実描画約10 fpsを確認しました。画面合成は平均約0.58 msでした。実描画はWeston timelineの `core_repaint_posted` で計測しています。
+
+- [実画面・各段階の計測値と手順](https://github.com/e-lab-pius-project/pius-meter-panel/blob/main/docs/VALIDATION.md#ubuntu-2604virgl最小転送間隔50-msの検証)
+- GPU有効化前後の100 ms設定での比較：合成時間は平均約10.5 ms → 約0.44 ms、パネルCPU使用率は約35% → 約2.8%（1コア=100%）。
+- 最小転送間隔100 msを残すと更新は約8 fpsで、GPU有効化だけではCANプロバイダーの間引きは解消しません。
+- GPU有効・2D切替・不正な `AGL_GL` の拒否は、更新した `tests/check-start.sh` で検査しました。Ubuntu 26.04実機とWSL2のUbuntu 24.04で成功しています。
+
+この記録のCAN通信は仮想CANです。実CAN、WindowsからのRDP接続、新規Ubuntuインストールからの全工程、60 fpsの描画能力、長時間運転は未検証です。
 
 再現用コマンド:
 

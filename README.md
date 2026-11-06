@@ -65,6 +65,28 @@ bash scripts/start.sh
 export AGL_DIR="$HOME/agl-qemu"
 ```
 
+### GPUアクセラレーションを確認する
+
+標準では `virtio-vga-gl` と `gtk,gl=on` を使い、VirGL経由でホストのGPUを利用します。Ubuntu本体には、そのGPUに対応するドライバーとMesaが必要です。[QEMU公式のVirtIO GPU説明](https://www.qemu.org/docs/master/system/devices/virtio/virtio-gpu.html)も参照してください。
+
+AGLへSSH接続した後、次を確認します。
+
+```sh
+cat /sys/kernel/debug/dri/0/virtio-gpu-features
+```
+
+`virgl : yes` ならゲスト側で3D機能が有効です。Ubuntu 26.04のAMD Radeon環境では、OpenGLの描画デバイスが `virgl (AMD Radeon Graphics …)` になることを確認しています。
+
+OpenGLの初期化に失敗する環境では、QEMUを終了してから2D表示で起動できます。自動では切り替えないため、GPUが使えない状態を起動時のエラーで確認できます。
+
+```bash
+AGL_GL=0 bash scripts/start.sh
+```
+
+`AGL_GL` は `1`（標準・3D有効）または `0`（2D）を指定します。GPUノードへのアクセス権が不足する場合は、Ubuntu本体で `ls -l /dev/dri/` を確認し、必要に応じて `sudo usermod -aG render "$(id -un)"` を実行してログアウト・ログインします。QEMUをsudoで起動する必要はありません。
+
+VirGL有効時はQEMUの `screendump` が `no surface` で失敗するため、AGL内の `agl-screenshooter` で撮影します。
+
 ## 4. AGLへ接続・終了する
 
 **別のUbuntu端末**から接続します。
@@ -100,6 +122,7 @@ bash scripts/ssh.sh poweroff
 
 - [仮想CANでKUKSAの車速を検査する](docs/CAN.md)
 - [USB-CANをAGLへ渡す／Ubuntu側で使う](docs/USB_CAN.md)
+- [PIUSメーターパネルと50 msのCANプロバイダー設定](https://github.com/e-lab-pius-project/pius-meter-panel/blob/main/docs/KUKSA_SETUP.md)
 
 既定の仮想 `can0` を残します。AGLが起動して仮想 `can0` ができた後にUSB-CANを渡すと、実アダプターは通常 `can1` になります。名前の衝突を避けるための改名は行いません。起動時から渡す場合は認識順で変わるため、番号だけで物理・仮想を判断しないでください。
 
@@ -110,6 +133,7 @@ bash scripts/ssh.sh poweroff
 | `/dev/kvm` がない | UEFIの仮想化設定と `lsmod \| grep kvm` を確認します。 |
 | KVMにアクセスできない | `id -nG` でkvmを確認し、ログアウト・ログインします。QEMUをsudoで起動しません。 |
 | DISPLAYが空 | Ubuntu本体またはRDPのGNOME端末から起動します。SSH端末だけではGUIを表示できません。 |
+| OpenGLを初期化できない | Ubuntu側のGPUドライバー・Mesa・GPUノードの権限を確認します。2D表示は `AGL_GL=0 bash scripts/start.sh` です。 |
 | ポート2222を使えない | 別のAGL/QEMUが動いていないか `ss -ltnp 'sport = :2222'` で確認します。 |
 | 二重起動のエラー | 同じデータのQEMUが終了したことを確認します。ロックファイル自体を消す必要はありません。 |
 | ハッシュ不一致 | 不一致のファイルだけを退避して再取得します。照合を省略しません。 |
